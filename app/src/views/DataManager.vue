@@ -2,7 +2,7 @@
   <v-container pa-10>
     <v-row align="center" justify="center">
       <v-col cols="8">
-        <v-card outlined style="border: 0.15em solid black" v-if="isAr3()">
+        <v-card outlined style="border: 0.15em solid black">
           <v-card-title class="justify-center primary--text">
             <h2>Load a result file</h2>
           </v-card-title>
@@ -230,10 +230,6 @@ export default class DataManager extends Vue {
       path: `/dashboard/${item}`,
     });
     window.open(routeData.href, "_blank");
-  }
-
-  isAr3(): boolean {
-    return this.studyType === StudyType.AR3;
   }
 }
 </script>

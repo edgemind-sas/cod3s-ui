@@ -38,14 +38,4 @@ const router = new VueRouter({
   routes,
 });
 
-const unsuscribe = router.beforeEach((to, from, next) => {
-  unsuscribe();
-  DataService.getStudyType().then((v) => {
-    const studyType = v as StudyType;
-    localStorage.setItem("studyType", studyType);
-    console.log("Store study type ", studyType);
-    next();
-  }, next);
-});
-
 export default router;

@@ -70,14 +70,6 @@ APP_ARG_PARSER.add_argument(
     help='Project folder (default .)')
 
 APP_ARG_PARSER.add_argument(
-    '-t', '--study-type',
-    dest='study_type',
-    action='store',
-    default='ar3',
-    choices=['ar3', 'pycatshoo'],
-    help='Indicate wich type of study (ar3 or pycatshoo)')
-
-APP_ARG_PARSER.add_argument(
     '-f', '--config-study_filename',
     dest='config_filename',
     action='store',
@@ -197,8 +189,6 @@ with open(app_config["config_filename"], 'r', encoding="utf-8") as yaml_file:
 
 
 
-logging.info(f"Launch study manager in {app_config['study_type']} mode")
-
 app_bknd = AR3App(**ar3_config)
 
 # load blocks at startup
@@ -226,14 +216,6 @@ def index():
 def getVersion():
     return Response(json.dumps({"version": app_config["version"]}),
                     mimetype='application/json')
-
-
-@app.route("/studyType")
-def getStudyType():
-    return Response(json.dumps({"study_type": app_config["study_type"]}),
-                    mimetype='application/json')
-
-
 
 @app.route("/upload_files", methods=["POST"])
 def upload():
