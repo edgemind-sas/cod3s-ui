@@ -1,6 +1,9 @@
 <template>
   <v-app>
     <v-app-bar app>
+      <v-btn icon :to="'/'">
+        <v-icon>mdi-home</v-icon>
+      </v-btn>
       <v-spacer />
       <h1 class="primary--text">
         COD3S Study Manager

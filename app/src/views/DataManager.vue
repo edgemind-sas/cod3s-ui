@@ -136,7 +136,7 @@
 
 <script lang="ts">
 import DataService from "@/services/DataService";
-import { Component, Inject, Vue } from "vue-property-decorator";
+import { Component, Vue } from "vue-property-decorator";
 import ProcessRunner from "@/components/ProcessRunner.vue";
 import StudyType from "@/models/StudyType";
 import AppService from "@/services/AppService";

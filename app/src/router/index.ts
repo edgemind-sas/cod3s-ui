@@ -1,6 +1,7 @@
 import Vue from "vue";
 import VueRouter, { RouteConfig } from "vue-router";
 import Dashboard from "../views/Dashboard.vue";
+import WorkspaceManager from "../views/WorkspaceManager.vue";
 import DataManager from "../views/DataManager.vue";
 import EditStudy from "../views/EditStudy.vue";
 import DataService from "../services/DataService";
@@ -11,7 +12,12 @@ Vue.use(VueRouter);
 const routes: Array<RouteConfig> = [
   {
     path: "/",
-    name: "Home",
+    name: "Workspace Manager",
+    component: WorkspaceManager,
+  },
+  {
+    path: "/studyManager/:workspace?",
+    name: "Study Manager",
     component: DataManager,
   },
   {
