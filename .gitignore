@@ -1,0 +1,11 @@
+app_data
+__pycache__
+.~lock*
+back/dist/
+tmp
+back/bin/gtssto/src/STOModel.cpp
+*.code-workspace
+back/stdout.txt
+back/results.csv
+examples
+**/bin/

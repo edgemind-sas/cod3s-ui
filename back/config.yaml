@@ -1,0 +1,54 @@
+simu_config:
+  observer_config:
+    Boolean:
+      value_list:
+        - true
+        - false
+      measure_list:
+        - has-value
+        - had-value
+        - sojourn-time
+        - number-of-occurrences
+        - first-occurrence-date
+        - mean-time-between-occurrences
+      stats_list: &indic_stats
+        - mean
+        - standard-deviation
+        - confidence-range
+        - distribution
+    Integer: &indic_num_conf
+      value_list: []
+      measure_list:
+        - value
+        - mean-value
+      stats_list:
+        - mean
+        - standard-deviation
+        - confidence-range
+        - distribution
+    Real:
+      <<: *indic_num_conf
+
+layout:
+  color_theme:
+    blue: "#6bb8d4"
+    darkblue: "#445d6f"
+    gray: "#585E61"
+
+  indic_fig:
+    plot: {}
+    layout:
+      margin: &fig_margin
+        l: 0
+        r: 0
+        b: 75
+        t: 60
+        pad: 0
+
+custom_specs:
+  legend: &legend_hz
+    orientation: "h"
+    yanchor: "bottom"
+    y: 1.02
+    xanchor: "right"
+    x: 1
