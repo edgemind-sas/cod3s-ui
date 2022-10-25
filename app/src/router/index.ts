@@ -2,10 +2,8 @@ import Vue from "vue";
 import VueRouter, { RouteConfig } from "vue-router";
 import Dashboard from "../views/Dashboard.vue";
 import WorkspaceManager from "../views/WorkspaceManager.vue";
-import DataManager from "../views/DataManager.vue";
+import WorkspaceView from "../views/WorkspaceView.vue";
 import EditStudy from "../views/EditStudy.vue";
-import DataService from "../services/DataService";
-import StudyType from "@/models/StudyType";
 
 Vue.use(VueRouter);
 
@@ -16,17 +14,17 @@ const routes: Array<RouteConfig> = [
     component: WorkspaceManager,
   },
   {
-    path: "/studyManager/:workspace?",
-    name: "Study Manager",
-    component: DataManager,
+    path: "/workspace/:workspaceId?",
+    name: "Workspace",
+    component: WorkspaceView,
   },
   {
-    path: "/dashboard/:studyFile?",
+    path: "/dashboard/:workspaceId?/:studyFile?",
     name: "Dashboard",
     component: Dashboard,
   },
   {
-    path: "/editStudy/:studyFile?",
+    path: "/editStudy/:workspaceId?/:studyFile?",
     name: "Edit Study",
     component: EditStudy,
   },

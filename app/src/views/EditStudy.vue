@@ -5,7 +5,11 @@
         <template v-if="asyncDataLoaded">
           <v-card class="mt-4">
             <v-card-title>
-              <v-btn to="/" outlined color="primary" class="ml-5"
+              <v-btn
+                :to="'/workspace/' + workspaceId"
+                outlined
+                color="primary"
+                class="ml-5"
                 ><v-icon left dark> mdi-chevron-left </v-icon>Back</v-btn
               >
               <v-btn
@@ -37,15 +41,9 @@
             </v-card-title>
             <v-card-text>
               <v-tabs v-model="tab" background-color="primary" dark>
-                <v-tab>
-                  General
-                </v-tab>
-                <v-tab>
-                  Indicators
-                </v-tab>
-                <v-tab>
-                  Dashboard
-                </v-tab>
+                <v-tab> General </v-tab>
+                <v-tab> Indicators </v-tab>
+                <v-tab> Dashboard </v-tab>
               </v-tabs>
 
               <v-tabs-items v-model="tab">
@@ -72,11 +70,11 @@
                     ></v-text-field>
                     <v-select
                       outlined
-                      :items="availableBlocks"
+                      :items="availableSystems"
                       item-text="name"
-                      item-value="name"
-                      label="Block"
-                      v-model="study.main_block"
+                      item-value="path"
+                      label="System"
+                      v-model="study.system_model"
                       :rules="requiredRules"
                       @change="dirtyStudy = true"
                     ></v-select>
@@ -128,9 +126,9 @@
                         <v-text-field
                           outlined
                           label="From"
-                          :value="study.simu_params.schedule_from"
+                          :value="study.simu_params.schedule[0].start"
                           @input="
-                            study.simu_params.schedule_from = Number($event)
+                            study.simu_params.schedule[0].start = Number($event)
                           "
                           type="number"
                           :hide-details="true"
@@ -140,9 +138,9 @@
                       <v-col cols="4">
                         <v-text-field
                           outlined
-                          :value="study.simu_params.schedule_to"
+                          :value="study.simu_params.schedule[0].end"
                           @input="
-                            study.simu_params.schedule_to = Number($event)
+                            study.simu_params.schedule[0].end = Number($event)
                           "
                           label="To"
                           :rules="requiredRules"
@@ -154,9 +152,10 @@
                       <v-col cols="4">
                         <v-text-field
                           outlined
-                          :value="study.simu_params.schedule_step"
+                          :value="study.simu_params.schedule[0].nvalues"
                           @input="
-                            study.simu_params.schedule_step = Number($event)
+                            study.simu_params.schedule[0].nvalues =
+                              Number($event)
                           "
                           label="Step"
                           :rules="requiredRules"
@@ -168,11 +167,13 @@
                   </div>
                 </v-tab-item>
                 <v-tab-item class="pa-3">
-                  <indicators-configurator
-                    :block="currentBlock"
+                  <pyc-indicators-configurator
+                    :system="currentSystem"
                     :indicators="study.indicators"
+                    :studyName="studyFile"
+                    :workspaceId="workspaceId"
                     v-on:dirty-config="dirtyStudy = true"
-                  ></indicators-configurator
+                  ></pyc-indicators-configurator
                 ></v-tab-item>
 
                 <v-tab-item class="pa-3">
@@ -202,19 +203,23 @@ import { Component, Vue, Watch } from "vue-property-decorator";
 
 import ProcessRunner from "@/components/ProcessRunner.vue";
 import IndicatorsConfigurator from "@/components/IndicatorsConfigurator.vue";
+import PycIndicatorsConfigurator from "@/components/PycIndicatorsConfigurator.vue";
 import DataService from "@/services/DataService";
-import Block from "@/models/Block";
+import System from "@/models/System";
 import Study from "@/models/Study";
 import Indicator from "@/models/Indicator";
+import WorkspaceService from "@/services/WorkspaceService";
 
 @Component({
   components: {
     ProcessRunner,
     IndicatorsConfigurator,
+    PycIndicatorsConfigurator,
   },
 })
 export default class EditStudy extends Vue {
   public studyFile = "";
+  public workspaceId: number = -1;
   public study: Study | any = {};
   public asyncDataLoaded = false;
   private isStudyAsFile = true;
@@ -224,27 +229,30 @@ export default class EditStudy extends Vue {
 
   private dirtyStudy = false;
 
-  get currentBlock(): Block | undefined {
-    return this.availableBlocks.find((b) => b.name == this.study.main_block);
+  get currentSystem(): System | undefined {
+    return this.availableSystems.find((b) => b.path == this.study.system_model);
   }
 
   public itemText(item: Indicator) {
     return `${item.name} (${item.observer})`;
   }
 
-  public availableBlocks: Array<Block> = [];
+  public availableSystems: Array<System> = [];
 
   public formIsValid() {
     if (this.$refs.form != undefined) {
-      let valid = (this.$refs.form as Vue & {
-        validate: () => boolean;
-      }).validate();
+      let valid = (
+        this.$refs.form as Vue & {
+          validate: () => boolean;
+        }
+      ).validate();
       return valid;
     }
     return false;
   }
 
   created(): void {
+    this.workspaceId = parseInt(this.$route.params.workspaceId);
     this.studyFile = this.$route.params.studyFile;
     this.isStudyAsFile = this.$route.params.studyFile != undefined;
     this.getAsyncData();
@@ -263,10 +271,15 @@ export default class EditStudy extends Vue {
   async getAsyncData(): Promise<void> {
     this.asyncDataLoaded = false;
 
-    this.availableBlocks = await DataService.getAvailableBlocks();
+    this.availableSystems = await WorkspaceService.getAvailableSystems(
+      this.workspaceId
+    );
     if (this.isStudyAsFile) {
-      this.study = await DataService.getConfig(this.studyFile);
-      this.hasResult = await DataService.hasResult(this.studyFile);
+      this.study = await WorkspaceService.loadStudy(
+        this.workspaceId,
+        this.studyFile
+      );
+      this.hasResult = false; //await DataService.hasResult(this.studyFile);
       this.study.simu_params.result_filename = this.studyFile.replace(
         ".yaml",
         ".csv"
@@ -275,14 +288,18 @@ export default class EditStudy extends Vue {
       this.study = {
         name: "New Study",
         description: "",
-        main_block: "",
+        system_model: "",
         indicators: [],
         simu_params: {
           nb_runs: 1000,
           seed: 1234,
-          schedule_from: 10,
-          schedule_to: 1000,
-          schedule_step: 10,
+          schedule: [
+            {
+              start: 10,
+              stop: 1000,
+              nvalues: 10,
+            },
+          ],
         },
       };
 
@@ -295,13 +312,20 @@ export default class EditStudy extends Vue {
     let canSave = true;
 
     if (!this.isStudyAsFile) {
-      canSave = await DataService.canSaveConfig(this.studyFile);
+      canSave = await WorkspaceService.canSaveConfig(
+        this.workspaceId,
+        this.studyFile
+      );
     }
 
     if (canSave) {
-      this.cleanupStudy();
+      //this.cleanupStudy();
 
-      await DataService.saveConfig(this.studyFile, this.study);
+      await WorkspaceService.saveConfig(
+        this.workspaceId,
+        this.studyFile,
+        this.study
+      );
       this.isStudyAsFile = true;
     } else {
       alert(
@@ -317,14 +341,14 @@ export default class EditStudy extends Vue {
   private cleanupStudy() {
     console.info("Clean indicators");
     this.study.indicators.forEach((indicator: Indicator) => {
-      let block = indicator.block;
+      let System = indicator.System;
 
-      console.info(`Indicator ${indicator.id} has block : ${block}`);
+      console.info(`Indicator ${indicator.id} has System : ${System}`);
 
-      let b = this.availableBlocks.find((b) => b.name === block);
+      let b = this.availableSystems.find((b) => b.name === System);
 
       if (b == undefined) {
-        console.info("Block " + block + " no longer exists, clean indicator");
+        console.info("System " + System + " no longer exists, clean indicator");
         this.$delete(
           this.study.indicators,
           this.study.indicators.indexOf(indicator)
@@ -353,9 +377,15 @@ export default class EditStudy extends Vue {
   async runSimulation(): Promise<void> {
     let saved = await this.save();
     if (saved) {
-      await (this.$refs.processRunner as ProcessRunner).run(this.studyFile);
+      await (this.$refs.processRunner as ProcessRunner).run(
+        this.workspaceId,
+        this.studyFile
+      );
 
-      this.hasResult = await DataService.hasResult(this.studyFile);
+      this.hasResult = await WorkspaceService.hasResults(
+        this.workspaceId,
+        this.studyFile
+      );
     }
   }
 

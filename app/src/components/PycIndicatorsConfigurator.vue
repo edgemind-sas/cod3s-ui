@@ -13,48 +13,50 @@
         class="mb-5"
         hide-details="auto"
       ></v-text-field>
-      <v-switch label="Hide empty observers" v-model="hideEmptyObservers">
+      <v-switch label="Hide empty components" v-model="hideEmptyComponents">
       </v-switch>
       <v-tabs v-model="indicatorTab" vertical>
         <v-tab
           class="left-justify-tab"
-          v-for="observer in filteredObserversList"
-          :key="observer.name"
+          v-for="component in filteredComponentsList"
+          :key="component.name"
           ><v-chip class="mr-2" small color="secondary">{{
-            indicFor(observer.name).length
+            indicFor(component.name).length
           }}</v-chip>
-          {{ observer.name }}
+          {{ component.name }}
         </v-tab>
       </v-tabs>
     </v-col>
     <v-col cols="9">
       <v-tabs-items v-model="indicatorTab" vertical>
         <v-tab-item
-          v-for="observer in filteredObserversList"
-          :key="observer.name"
+          v-for="component in filteredComponentsList"
+          :key="component.name"
         >
-          <v-btn class="ml-5" color="accent" @click="addIndic(observer)"
+          <v-btn class="ml-5" color="accent" @click="addIndic(component.name)"
             ><v-icon>mdi-plus</v-icon>Add indicator</v-btn
           >
 
           <v-data-table
-            :items="indicFor(observer.name)"
-            :headers="headersFor(observer.type)"
+            :items="indicFor(component.name)"
+            :headers="headersFor(null)"
           >
-            <template v-slot:[`item.name`]="indicators">
-              <v-text-field
-                v-model="indicators.item.name"
-                label="Name"
-                single-line
+            <template v-slot:[`item.var`]="indicators">
+              <v-select
+                :items="availableVarList(component.name)"
+                v-model="indicators.item.var"
                 hide-details="true"
-              ></v-text-field>
+                @change="dirtyConfig()"
+              ></v-select>
             </template>
+
             <template v-slot:[`item.description`]="indicators">
               <v-text-field
                 v-model="indicators.item.description"
                 label="Description"
                 single-line
                 hide-details="true"
+                @change="dirtyConfig()"
               ></v-text-field>
             </template>
 
@@ -64,38 +66,39 @@
                 label="Unit"
                 single-line
                 hide-details="true"
+                @change="dirtyConfig()"
               ></v-text-field>
             </template>
-
+            <!--
             <template v-slot:[`item.measure`]="indicators">
               <v-select
-                :items="indicatorConfig[observer.type].measure_list"
+                :items="indicatorConfig[component.type].measure_list"
                 v-model="indicators.item.measure"
                 hide-details="true"
                 @change="dirtyConfig()"
               ></v-select>
             </template>
-
+-->
             <template v-slot:[`item.stats`]="indicators">
               <v-select
-                :items="indicatorConfig[observer.type].stats_list"
+                :items="stats_list"
                 v-model="indicators.item.stats"
                 multiple
                 hide-details="true"
                 @change="dirtyConfig()"
               ></v-select>
             </template>
-
+            <!--
             <template v-slot:[`item.value`]="indicators">
               <v-switch
                 dense
-                v-if="observer.type === 'Boolean'"
+                v-if="component.type === 'Boolean'"
                 v-model="indicators.item.value"
                 :label="`${indicators.item.value.toString()}`"
                 @change="dirtyConfig()"
               ></v-switch>
             </template>
-
+-->
             <template v-slot:[`item.delete`]="indicators">
               <v-btn
                 small
@@ -118,30 +121,56 @@ import Indicator from "@/models/Indicator";
 import Observer from "@/models/Observer";
 import DataService from "@/services/DataService";
 import { Component, Vue, Prop } from "vue-property-decorator";
+import WorkspaceService from "@/services/WorkspaceService";
 
 @Component({})
-export default class IndicatorsConfigurator extends Vue {
-  @Prop() indicators!: Array<Indicator>;
+export default class PycIndicatorsConfigurator extends Vue {
+  @Prop() indicators!: Array<any>;
   @Prop() system!: System;
+  @Prop() workspaceId!: number;
+  @Prop() studyName!: string;
 
   private indicatorTab = 0;
   private indicatorConfig: any = {};
   private dataLoaded = false;
   private filterObserver = "";
-  private hideEmptyObservers = false;
+  private hideEmptyComponents = false;
 
-  indicFor(observerName: string): Array<Indicator> {
-    return this.indicators.filter(
-      (indic: Indicator) =>
-        indic.observer === observerName && indic.system === this.system.name
-    );
+  private system_info = {};
+
+  indicFor(componentName: string): Array<any> {
+    return this.indicators.filter((indic) => indic.component === componentName);
+  }
+
+  private stats_list = ["mean", "stddev"];
+
+  availableVarList(name: string): Array<string> {
+    return this.system_info[name];
+  }
+
+  get filteredComponentsList(): Array<any> {
+    let components = Object.keys(this.system_info).map((n) => ({ name: n }));
+
+    if (this.hideEmptyComponents) {
+      return components.filter((c) => this.indicFor(c.name).length != 0);
+    }
+    return components;
+  }
+
+  addIndic(component: string): void {
+    let first_value = this.availableVarList(component)[0];
+    this.indicators.push({
+      var: first_value,
+      stats: ["mean", "stddev"],
+      component: component,
+    });
   }
 
   headersFor(type: string): any {
     let headers = [
       {
         text: "Name",
-        value: "name",
+        value: "var",
       },
       {
         text: "Description",
@@ -151,22 +180,22 @@ export default class IndicatorsConfigurator extends Vue {
         text: "Unit",
         value: "unit",
       },
-      {
-        text: "Measure",
-        value: "measure",
-      },
+      // {
+      //   text: "Measure",
+      //   value: "measure",
+      // },
       {
         text: "Stats",
         value: "stats",
       },
     ];
 
-    if (type === "Boolean") {
-      headers.push({
-        text: "Value",
-        value: "value",
-      });
-    }
+    // if (type === "Boolean") {
+    //   headers.push({
+    //     text: "Value",
+    //     value: "value",
+    //   });
+    // }
 
     headers.push({
       text: "Delete",
@@ -174,39 +203,6 @@ export default class IndicatorsConfigurator extends Vue {
     });
 
     return headers;
-  }
-
-  get filteredObserversList(): Array<Observer> {
-    return this.system.observers.filter((obs) => {
-      if (this.hideEmptyObservers && this.indicFor(obs.name).length == 0) {
-        return false;
-      }
-
-      if (
-        this.filterObserver != null &&
-        !obs.name.toLowerCase().includes(this.filterObserver.toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }
-
-  addIndic(observer: Observer): void {
-    let newIndic = new Indicator();
-    newIndic.id = DataService.generateId();
-    newIndic.observer = observer.name;
-    newIndic.type = observer.type;
-    newIndic.system = this.system.name;
-    newIndic.measure = this.indicatorConfig[observer.type].measure_list[0];
-    newIndic.stats = ["mean", "standard-deviation", "confidence-range"];
-    newIndic.value = observer.type === "Boolean" ? true : "";
-    newIndic.name = `Indic on ${observer.name}`;
-    newIndic.description = `Indic on ${observer.name}`;
-
-    this.indiactors.push(newIndic);
-    this.dirtyConfig();
   }
 
   public dirtyConfig(): void {
@@ -223,9 +219,11 @@ export default class IndicatorsConfigurator extends Vue {
   }
 
   async getIndicatorConfig(): Promise<void> {
-    let config = await DataService.getIndicatorConfig();
+    this.system_info = await WorkspaceService.getSystemInfo(
+      this.workspaceId,
+      this.studyName
+    );
 
-    this.indicatorConfig = config.observer_config;
     this.dataLoaded = true;
   }
 }

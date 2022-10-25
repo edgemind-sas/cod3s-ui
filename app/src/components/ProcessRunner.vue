@@ -4,10 +4,7 @@
       <v-card-title
         >Building dashboard
         <v-btn @click="killDashboard" outlined class="ml-5" color="accent"
-          ><v-icon left>
-            mdi-stop
-          </v-icon>
-          Cancel</v-btn
+          ><v-icon left> mdi-stop </v-icon> Cancel</v-btn
         >
         <v-btn
           @click="showDashboard"
@@ -15,10 +12,7 @@
           outlined
           class="ml-5"
           color="primary"
-          ><v-icon left>
-            mdi-chart-line
-          </v-icon>
-          Show results</v-btn
+          ><v-icon left> mdi-chart-line </v-icon> Show results</v-btn
         >
       </v-card-title>
       <v-card-text>
@@ -34,6 +28,8 @@ import { Component, Vue, Prop } from "vue-property-decorator";
 
 import LogViewer from "@femessage/log-viewer";
 import DataService from "@/services/DataService";
+import WorkspaceService from "@/services/WorkspaceService";
+import Workspace from "@/models/Workspace";
 
 @Component({ components: { LogViewer } })
 export default class ProcessRunner extends Vue {
@@ -49,7 +45,10 @@ export default class ProcessRunner extends Vue {
     this.logs = logARray.join("\n");
   }
 
-  async run(configFileName: string): Promise<void> {
+  private workspaceId: number | null = null;
+
+  async run(workspaceId: number, configFileName: string): Promise<void> {
+    this.workspaceId = workspaceId;
     this.configFileName = configFileName;
     this.show = true;
     this.logs = "";
@@ -57,7 +56,10 @@ export default class ProcessRunner extends Vue {
     this.updateTimer = setInterval(() => {
       this.refresh();
     }, 1000);
-    let returncode = await DataService.runSimu(configFileName);
+    let returncode = await WorkspaceService.runStudy(
+      workspaceId,
+      configFileName
+    );
 
     clearInterval(this.updateTimer);
     this.refresh();
@@ -67,7 +69,9 @@ export default class ProcessRunner extends Vue {
   }
 
   async killDashboard(): Promise<void> {
-    await DataService.stopSimu();
+    if (this.workspaceId) {
+      await WorkspaceService.stopStudy(this.workspaceId, this.configFileName);
+    }
     clearInterval(this.updateTimer);
     this.show = false;
     this.complete = false;
@@ -76,7 +80,7 @@ export default class ProcessRunner extends Vue {
   async showDashboard(): Promise<void> {
     this.complete = false;
     let routeData = this.$router.resolve({
-      path: `/dashboard/${this.configFileName}`,
+      path: `/dashboard/${this.workspaceId}/${this.configFileName}`,
     });
     window.open(routeData.href, "_blank");
     this.show = false;

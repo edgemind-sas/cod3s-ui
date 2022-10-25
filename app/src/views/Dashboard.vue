@@ -4,38 +4,11 @@
       <v-card class="mt-4">
         <v-card-text v-if="loaded">
           <v-tabs v-model="tab" background-color="primary" dark>
-            <v-tab v-if="study">
-              Synthesis
-            </v-tab>
-            <v-tab>
-              All indicators
-            </v-tab>
+            <v-tab> All indicators </v-tab>
+            <v-tab v-if="study"> Synthesis </v-tab>
           </v-tabs>
 
           <v-tabs-items v-model="tab">
-            <v-tab-item class="pa-3" v-if="study">
-              <v-select
-                label="Selected Indicators"
-                :items="indicators"
-                item-value="id"
-                :item-text="itemText"
-                multiple
-                v-model="selectedIndicators"
-                @change="drawSynthesisPlot()"
-              ></v-select>
-
-              <div
-                ref="plotSynthesis"
-                id="plotSynthesis"
-                style="max-height:500px"
-              ></div>
-              <div>
-                <v-btn color="primary" @click="downloadIndicatorsData">
-                  <v-icon left>mdi-download</v-icon>
-                  Download indicators data
-                </v-btn>
-              </div>
-            </v-tab-item>
             <v-tab-item class="pa-3" eager>
               <v-row>
                 <v-col cols="3">
@@ -79,15 +52,15 @@
                   </h2>
 
                   <h3>Graph</h3>
-                  <div ref="plot" id="plot" style="max-height:380px"></div>
+                  <div ref="plot" id="plot" style="max-height: 380px"></div>
 
-                  <h3 v-if="study">Configuration</h3>
+                  <!--<h3 v-if="study">Configuration</h3>
                   <v-row class="mt-2 mb-1" v-if="study">
                     <v-col cols="4">
                       <b>Measure :</b>
                       {{ indicatorForId(tabs[selectedIndicatorTab]).measure }}
-                    </v-col>
-                    <v-col cols="4">
+                    </v-col>-->
+                  <!--<v-col cols="4">
                       <b>Stats :</b>
                       {{
                         indicatorForId(tabs[selectedIndicatorTab]).stats.join(
@@ -95,18 +68,7 @@
                         )
                       }}
                     </v-col>
-                    <v-col cols="4">
-                      <span
-                        v-if="
-                          indicatorForId(tabs[selectedIndicatorTab]).type ===
-                            'Boolean'
-                        "
-                      >
-                        <b>Value :</b>
-                        {{ indicatorForId(tabs[selectedIndicatorTab]).value }}
-                      </span>
-                    </v-col>
-                  </v-row>
+                  </v-row>-->
 
                   <h3>Data</h3>
                   <v-data-table
@@ -115,7 +77,29 @@
                     :headers="headers"
                   ></v-data-table>
                 </v-col>
-              </v-row>
+              </v-row> </v-tab-item
+            ><v-tab-item class="pa-3" v-if="study">
+              <v-select
+                label="Selected Indicators"
+                :items="indicators"
+                item-value="id"
+                :item-text="itemText"
+                multiple
+                v-model="selectedIndicators"
+                @change="drawSynthesisPlot()"
+              ></v-select>
+
+              <div
+                ref="plotSynthesis"
+                id="plotSynthesis"
+                style="max-height: 500px"
+              ></div>
+              <div>
+                <v-btn color="primary" @click="downloadIndicatorsData">
+                  <v-icon left>mdi-download</v-icon>
+                  Download indicators data
+                </v-btn>
+              </div>
             </v-tab-item>
           </v-tabs-items>
         </v-card-text>
@@ -130,6 +114,7 @@ import { Component, Vue } from "vue-property-decorator";
 import Plotly from "plotly.js";
 import Study from "@/models/Study";
 import Indicator from "@/models/Indicator";
+import WorkspaceService from "@/services/WorkspaceService";
 
 @Component({
   components: {},
@@ -143,6 +128,8 @@ export default class Dashboard extends Vue {
   private tab = 0;
 
   private study: Study | null = null;
+
+  public workspaceId: number | null = null;
   private studyFile = "";
 
   private filterIndicator = "";
@@ -156,34 +143,41 @@ export default class Dashboard extends Vue {
   }
 
   async getAsyncData(): Promise<void> {
-    if (this.$route.params.studyFile != undefined) {
-      this.studyFile = this.$route.params.studyFile;
-      // load study
-      this.study = await DataService.getConfig(this.studyFile);
-    }
+    this.studyFile = this.$route.params.studyFile;
+    this.workspaceId = parseInt(this.$route.params.workspaceId);
 
-    let alltabs = await DataService.getTabs();
+    // load study
+    this.study = await WorkspaceService.loadStudy(
+      this.workspaceId,
+      this.studyFile
+    );
 
-    this.tabs = alltabs.filter((id) => {
-      if (this.study) {
-        let indic = this.study.indicators.find((i) => i.id === id);
-        if (indic) {
-          return indic.block === this.study.main_block;
-        }
-      } else {
-        return true;
-      }
-    });
+    //let alltabs = await DataService.getTabs();
+
+    this.tabs = this.study?.indicators.map(
+      (indic) => `${indic["component"]}.${indic["var"]}`
+    );
+
+    // this.tabs = alltabs.filter((id) => {
+    //   if (this.study) {
+    //     let indic = this.study.indicators.find((i) => i.id === id);
+    //     if (indic) {
+    //       return indic.block === this.study.main_block;
+    //     }
+    //   } else {
+    //     return true;
+    //   }
+    // });
 
     if (this.tabs.length > 0) {
       this.showTab(0);
     }
 
-    if (this.study) {
-      this.selectedIndicators = this.study.selected_indicators;
-    } else {
-      this.selectedIndicators = this.tabs;
-    }
+    // if (this.study) {
+    //   this.selectedIndicators = this.study.selected_indicators;
+    // } else {
+    this.selectedIndicators = this.tabs;
+    // }
 
     this.drawSynthesisPlot();
 
@@ -230,7 +224,11 @@ export default class Dashboard extends Vue {
   }
 
   async showTab(tabIdx: number): Promise<void> {
-    this.data = await DataService.getTabData(this.tabs[tabIdx]);
+    this.data = await WorkspaceService.getTabData(
+      this.workspaceId,
+      this.studyFile,
+      this.tabs[tabIdx]
+    );
 
     this.headers.splice(0, this.headers.length);
     let headers: Array<any> = [];
@@ -241,7 +239,11 @@ export default class Dashboard extends Vue {
 
     this.headers.push(...headers);
 
-    const graph = await DataService.getGraphData(this.tabs[tabIdx]);
+    const graph = await WorkspaceService.getGraphData(
+      this.workspaceId,
+      this.studyFile,
+      this.tabs[tabIdx]
+    );
     Plotly.newPlot(this.$refs.plot as Plotly.Root, graph.data, graph.layout, {
       displaylogo: false,
     });
@@ -256,16 +258,17 @@ export default class Dashboard extends Vue {
   }
 
   labelForId(id: string): string {
-    if (this.study) {
-      let indicator = this.study.indicators.find((i) => i.id === id);
-      return indicator && indicator.name
-        ? indicator.name
-        : `${indicator?.observer}_${indicator?.measure}_${
-            indicator?.value ? indicator.value : ""
-          }`;
-    } else {
-      return id;
-    }
+    // if (this.study) {
+    //   let indicator = this.study.indicators.find((i) => i.id === id);
+    //   return indicator && indicator.name
+    //     ? indicator.name
+    //     : `${indicator?.observer}_${indicator?.measure}_${
+    //         indicator?.value ? indicator.value : ""
+    //       }`;
+    // } else {
+    //   return id;
+    // }
+    return id;
   }
 
   indicatorForId(id: string): Indicator | undefined {

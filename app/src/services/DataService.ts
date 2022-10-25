@@ -24,10 +24,10 @@ class DataService {
 
     const study: Study = response.data;
 
-    // for old config files, add main block and id
+    // for old config files, add main system and id
     study.indicators.forEach((indic) => {
-      if (indic.block == null) {
-        indic.block = study.main_block;
+      if (indic.system == null) {
+        indic.system = study.system_model;
       }
 
       if (indic.id == null) {
@@ -40,10 +40,6 @@ class DataService {
 
   public generateId(): string {
     return Math.floor(Math.random() * Date.now()).toString();
-  }
-
-  async saveConfig(filename: string, study: Study): Promise<void> {
-    await axios.post(API_URL + "/save-config/" + filename, study);
   }
 
   async deleteConfig(file: string): Promise<string> {
@@ -59,6 +55,11 @@ class DataService {
     });
     return response.data;
   }
+
+  async saveConfig(filename: string, study: Study): Promise<void> {
+    await axios.post(API_URL + "/save-config/" + filename, study);
+  }
+
   async canSaveConfig(file: string): Promise<boolean> {
     const response = await axios.get(API_URL + "/can-save-config", {
       params: { file: file },

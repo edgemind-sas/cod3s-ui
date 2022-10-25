@@ -1,0 +1,17 @@
+workspaces:
+- id: 1
+  name: Example 1
+  path: /home/gurvan/dev/cod3s/cod3slib/examples/pyc_study_basic
+  type: pycatshoo
+- id: 2
+  name: Example 2
+  path: /home/gurvan/dev/cod3s/cod3slib/examples/pyc_study_basic_2
+  type: pycatshoo
+- id: 3
+  name: Example 3
+  path: /home/gurvan/dev/cod3s/cod3slib/examples/pyc_study_basic_3
+  type: pycatshoo
+- id: 0
+  name: ez
+  path: /home/gurvan/dev/cod3s/cod3slib/examples/pyc_study_basic_2
+  type: pycatshoo

@@ -3,7 +3,7 @@ import Indicator from "./Indicator";
 export default interface Study {
   name: string;
   description: string;
-  main_block: string;
+  system_model: string;
   indicators: Array<Indicator>;
   selected_indicators: Array<string>;
 

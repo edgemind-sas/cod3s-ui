@@ -4,35 +4,18 @@
       <v-col cols="8">
         <v-card outlined style="border: 0.15em solid black">
           <v-card-title class="justify-center primary--text">
-            <h2>Load a result file</h2>
+            <h2>Workspace information</h2>
           </v-card-title>
-          <v-card-text>
-            <v-row align="center" justify="center">
-              <v-col cols="5">
-                <v-file-input
-                  accept=".csv"
-                  label="Result file"
-                  v-model="fileToUpload"
-                  :loading="uploading"
-                  :disabled="uploading"
-                ></v-file-input>
-              </v-col>
-              <v-col cols="2">
-                <v-btn
-                  color="accent"
-                  :disabled="uploading || fileToUpload == null"
-                  @click="uploadFile()"
-                  ><v-icon left>mdi-upload</v-icon>
-                  Upload files
-                </v-btn>
-              </v-col>
-            </v-row>
+          <v-card-text v-if="workspace">
+            <p>Name : {{ workspace.name }}</p>
+            <p>Type : {{ workspace.type }}</p>
           </v-card-text>
         </v-card>
+
         <v-card class="mt-4" outlined style="border: 0.15em solid black">
           <v-card-title class="justify-center primary--text">
-            <h2>List of studies</h2>
-            <v-btn outlined color="primary" class="ml-5" to="/editStudy/"
+            <h2>Studies</h2>
+            <v-btn outlined color="primary" class="ml-5" @click="createStudy()"
               ><v-icon left dark> mdi-plus </v-icon>New study</v-btn
             >
           </v-card-title>
@@ -60,6 +43,7 @@
                     <span>{{ item.file_name }}</span>
 
                     <v-btn
+                      disabled
                       @click="renameFile(item)"
                       class="ma-2"
                       text
@@ -77,6 +61,7 @@
                 <v-list-item-action>
                   <v-row
                     ><v-btn
+                      disabled
                       small
                       outlined
                       color="primary"
@@ -86,14 +71,16 @@
                       Copy
                     </v-btn>
                     <v-btn
-                      :to="'/editStudy/' + item.file_name"
+                      :to="'/editStudy/' + workspace.id + '/' + item.file_name"
                       small
                       outlined
                       color="primary"
                       class="mr-1"
                       style="cursor: pointer"
-                      ><v-icon left> mdi-pen </v-icon> Edit </v-btn
-                    ><v-btn
+                      ><v-icon left> mdi-pen </v-icon> Edit
+                    </v-btn>
+                    <v-btn
+                      disabled
                       small
                       outlined
                       color="primary"
@@ -114,7 +101,7 @@
                     <v-btn
                       small
                       @click="showDashboard(item.file_name)"
-                      :disabled="!item.has_csv"
+                      :disabled="!item.has_result"
                       outlined
                       color="primary"
                       ><v-icon left> mdi-chart-line </v-icon> Show
@@ -140,13 +127,15 @@ import { Component, Vue } from "vue-property-decorator";
 import ProcessRunner from "@/components/ProcessRunner.vue";
 import StudyType from "@/models/StudyType";
 import AppService from "@/services/AppService";
+import WorkspaceService from "@/services/WorkspaceService";
+import Workspace from "@/models/Workspace";
 
 @Component({
   components: {
     ProcessRunner,
   },
 })
-export default class DataManager extends Vue {
+export default class WorkspaceView extends Vue {
   public studyType: StudyType = AppService.getStudyType();
 
   public uploading = false;
@@ -154,13 +143,24 @@ export default class DataManager extends Vue {
   public configList: Array<any> = [];
   public filterStudy = "";
 
+  public workspace: Workspace | null = null;
+
   mounted(): void {
     this.getAsyncData();
   }
 
   async getAsyncData(): Promise<void> {
-    let availableConfigs = await DataService.getAvailableConfigs();
-    this.configList = availableConfigs;
+    let workspaceId = parseInt(this.$route.params.workspaceId);
+
+    try {
+      this.workspace = await WorkspaceService.openWorkspace(workspaceId);
+      let availableConfigs = await WorkspaceService.getAvailableStudies(
+        workspaceId
+      );
+      this.configList = availableConfigs;
+    } catch (e) {
+      alert(`Error when loading workspace \n ${e}`);
+    }
   }
 
   get filteredConfigList(): Array<any> {
@@ -186,11 +186,6 @@ export default class DataManager extends Vue {
     this.$router.push("/dashboard");
   }
 
-  public async run(configFileName: string): Promise<void> {
-    await (this.$refs.processRunner as ProcessRunner).run(configFileName);
-    await this.getAsyncData();
-  }
-
   async renameFile(item: any): Promise<void> {
     let newName = prompt('Rename "' + item.file_name + '":', item.file_name);
 
@@ -211,6 +206,15 @@ export default class DataManager extends Vue {
     }
   }
 
+  public async run(configFileName: string): Promise<void> {
+    if (this.workspace) {
+      await (this.$refs.processRunner as ProcessRunner).run(
+        this.workspace.id,
+        configFileName
+      );
+    }
+  }
+
   async deleteConfig(item: string): Promise<void> {
     if (confirm("Do you really want to delete " + item + "?")) {
       await DataService.deleteConfig(item);
@@ -224,12 +228,36 @@ export default class DataManager extends Vue {
   }
 
   async showDashboard(item: string): Promise<void> {
-    await DataService.loadResult(item);
-
     let routeData = this.$router.resolve({
-      path: `/dashboard/${item}`,
+      path: `/dashboard/${this.workspace?.id}/${item}`,
     });
     window.open(routeData.href, "_blank");
+  }
+
+  async createStudy(): Promise<void> {
+    let newName = prompt("New study name :");
+
+    newName = newName + ".yaml";
+
+    if (newName) {
+      let valid = true;
+      // check that file doesn't exist
+      this.configList.forEach((element) => {
+        if (element.file_name === newName) {
+          alert("A config file " + newName + " already exists");
+          valid = false;
+        }
+      });
+
+      if (valid) {
+        if (this.workspace) {
+          await WorkspaceService.createStudy(this.workspace?.id, newName);
+
+          // go to this study
+          this.$router.push(`/editStudy/${this.workspace.id}/${newName}`);
+        }
+      }
+    }
   }
 }
 </script>

@@ -7,6 +7,6 @@ export default class Indicator {
   description!: string;
   name!: string;
   unit!: string;
-  block!: string;
+  system!: string;
   id!: string;
 }
